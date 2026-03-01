@@ -13,13 +13,17 @@ from Ollama import OllamaClient
 import mss
 import numpy as np
 import cv2
+from elevenlabs import set_api_key, generate, play
 import elevenlabs
-
+from elevenlabs import voices
+voces_disponibles = voices()
+print([v["name"] for v in voces_disponibles])
 # =========================
 # 🔐 Cargar variables
 # =========================
 load_dotenv()
 
+set_api_key(os.getenv("ELEVENLABS_API_KEY"))
 
 
 with mss.mss() as sct:
@@ -175,7 +179,7 @@ class Bot(commands.Bot):
 
             await message.channel.send(respuesta[:400])
 
-            await hablar_async(respuesta)
+            await hablar_elevenlabs(respuesta, voz="Bella")
 
         await self.handle_commands(message)
 
