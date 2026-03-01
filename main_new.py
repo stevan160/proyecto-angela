@@ -10,13 +10,41 @@ from transformers import pipeline
 import requests
 import tensorflow as tf
 from Ollama import OllamaClient
-
-
+import mss
+import numpy as np
+import cv2
 
 # =========================
 # 🔐 Cargar variables
 # =========================
 load_dotenv()
+
+
+
+with mss.mss() as sct:
+    monitor = sct.monitors[1]
+    screenshot = sct.grab(monitor)
+    frame = np.array(screenshot)
+    cv2.imshow("Screen", frame)
+    cv2.waitKey(1)
+
+
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-4.1",
+    input=[
+        {"role": "user", "content": [
+            {"type": "input_text", "text": "Qué está pasando en este juego?"},
+            {"type": "input_image", "image_url": "data:image/png;base64,..."}
+        ]}
+    ]
+)
+
+while True:
+    frame = capturar()
+    decision = analizar(frame)
+    ejecutar(decision)
 
 # =========================
 # 🧠 Modelo de sentimiento
