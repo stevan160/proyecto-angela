@@ -30,7 +30,7 @@ def es_pregunta_pesada(texto: str):
 
     palabras_clave = ["explica", "demuestra", "ecuacion", "código", "algoritmo"]
 
-    if len(texto) > 300:
+    if len(texto) > 30:
         return True
 
     if any(p in texto.lower() for p in palabras_clave):

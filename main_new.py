@@ -6,17 +6,21 @@ from twitchio.ext import commands
 import asyncio
 import websockets
 import json
-from transformers import pipeline   # ← correct import
+from transformers import pipeline
 import requests
 import tensorflow as tf
 from Ollama import OllamaClient
 
-# …rest of file…
+
 
 # =========================
 # 🔐 Cargar variables
 # =========================
 load_dotenv()
+load_dotenv(dotenv_path="config.env")
+
+load_requeriments()()
+read_requeriments()()
 
 # =========================
 # 🧠 Modelo de sentimiento
