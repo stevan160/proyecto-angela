@@ -17,10 +17,6 @@ from Ollama import OllamaClient
 # 🔐 Cargar variables
 # =========================
 load_dotenv()
-load_dotenv(dotenv_path="config.env")
-
-load_requeriments()()
-read_requeriments()()
 
 # =========================
 # 🧠 Modelo de sentimiento
