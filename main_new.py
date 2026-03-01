@@ -6,8 +6,12 @@ from twitchio.ext import commands
 import asyncio
 import websockets
 import json
-from transformers import pipeline
-import ollama
+from transformers import pipeline   # ← correct import
+import requests
+import tensorflow as tf
+from Ollama import OllamaClient
+
+# …rest of file…
 
 # =========================
 # 🔐 Cargar variables
@@ -157,8 +161,6 @@ class Bot(commands.Bot):
     # 🧠 MODELO HÍBRIDO
     # =========================
     async def consultar_modelo(self, texto):
-
-     async def consultar_modelo(self, texto):
 
         # =========================
         # 🖥️ Intentar PC IA local
