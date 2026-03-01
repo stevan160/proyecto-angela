@@ -13,6 +13,7 @@ from Ollama import OllamaClient
 import mss
 import numpy as np
 import cv2
+import elevenlabs
 
 # =========================
 # 🔐 Cargar variables
@@ -29,16 +30,9 @@ with mss.mss() as sct:
     cv2.waitKey(1)
 
 
-client = OpenAI()
 
-response = client.responses.create(
-    model="gpt-4.1",
-    input=[
-        {"role": "user", "content": [
-            {"type": "input_text", "text": "Qué está pasando en este juego?"},
-            {"type": "input_image", "image_url": "data:image/png;base64,..."}
-        ]}
-    ]
+openai_client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
 while True:
@@ -216,13 +210,13 @@ class Bot(commands.Bot):
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="deepseek-chat",
                 messages=[
-                    {"role": "system", "content": "Eres un bot divertido de Twitch."},
+                    {"role": "system", "content": "Eres una VTuber femenina independiente que vive en el stream."},
                     {"role": "user", "content": texto}
                 ],
-                max_tokens=12000,
-            )
+                max_tokens=500,
+        )
 
             return response.choices[0].message.content, "NEUTRAL"
 
