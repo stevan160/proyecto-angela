@@ -18,6 +18,8 @@ import elevenlabs
 from elevenlabs import voices
 voces_disponibles = voices()
 print([v["name"] for v in voces_disponibles])
+
+
 # =========================
 # 🔐 Cargar variables
 # =========================
