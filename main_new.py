@@ -16,6 +16,9 @@ import cv2
 from elevenlabs import set_api_key, generate, play
 import elevenlabs
 from elevenlabs import voices
+
+
+
 voces_disponibles = voices()
 print([v["name"] for v in voces_disponibles])
 
@@ -69,6 +72,24 @@ tts_engine = pyttsx3.init()
 async def hablar_async(texto):
     await asyncio.to_thread(tts_engine.say, texto)
     await asyncio.to_thread(tts_engine.runAndWait)
+
+# =========================
+# 🔊 ElevenLabs TTS
+# =========================
+async def hablar_elevenlabs(texto, voz="Bella"):
+    try:
+        # Generar audio
+        audio = generate(
+            text=texto,
+            voice=voz,
+            model="eleven_multilingual_v1"
+        )
+        # Reproducir audio
+        await asyncio.to_thread(play, audio)
+    except Exception as e:
+        print("Error ElevenLabs TTS:", e)
+
+
 
 # =========================
 # 🔌 VTube Studio conexión
@@ -179,10 +200,11 @@ class Bot(commands.Bot):
             else:
                 await activar_expresion(self.vts_ws, "neutral.exp3.json")
 
+            # Enviar texto al chat
             await message.channel.send(respuesta[:400])
 
+            # 🔊 Convertir la respuesta a voz con ElevenLabs
             await hablar_elevenlabs(respuesta, voz="Bella")
-
         await self.handle_commands(message)
 
     # =========================
@@ -216,12 +238,12 @@ class Bot(commands.Bot):
 
         try:
             response = client.chat.completions.create(
-                model="deepseek-chat",
+                model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "Eres una VTuber femenina independiente que vive en el stream."},
+                    {"role": "system", "content": "Eres una VTuber femenina llamada angela,eres relajada,inteligente y curiosa independiente que vive en el stream."},
                     {"role": "user", "content": texto}
                 ],
-                max_tokens=500,
+                max_tokens=50000,
         )
 
             return response.choices[0].message.content, "NEUTRAL"
