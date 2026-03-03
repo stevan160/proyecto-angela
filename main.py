@@ -29,9 +29,9 @@ audio_queue = asyncio.Queue()
 # =========================
 # 📜 Historial compartido del chat
 # =========================
-# Guarda los últimos 30 mensajes del chat (usuario + Angela)
+# Guarda los últimos 3000000 mensajes del chat (usuario + Angela)
 # Se pasa como contexto al modelo para que recuerde la conversación
-HISTORIAL_MAX = 30
+HISTORIAL_MAX = 3000000
 chat_history = deque(maxlen=HISTORIAL_MAX)
 
 def agregar_al_historial(rol: str, nombre: str, contenido: str):
@@ -284,9 +284,13 @@ class Bot(commands.Bot):
 
         # Comando !olvida — limpia el historial (solo el streamer)
         if message.content.startswith("!olvida"):
-            # Reemplaza con tu nick para que solo tú puedas usarlo
             if message.author.name.lower() == os.getenv("TWITCH_NICK", "").lower():
                 chat_history.clear()
+                # ✅ También limpiar el historial del servidor
+                try:
+                    requests.post("http://192.168.1.50:8000/reset", timeout=5)
+                except Exception:
+                    pass
                 await message.channel.send("🧹 Historial limpiado. ¡Empezamos de cero!")
             return
 
@@ -298,9 +302,13 @@ class Bot(commands.Bot):
                 await message.channel.send("¡Escribe algo después de !ask! 😊")
                 return
 
-            respuesta, sentimiento = await self.consultar_modelo(pregunta, historial_como_messages())
+            # ✅ Pasamos el nombre del usuario en lugar del historial
+            respuesta, sentimiento = await self.consultar_modelo(
+                pregunta,
+                usuario=message.author.name
+            )
 
-            # Guardar respuesta de Angela en el historial
+            # Guardar respuesta de Angela en el historial local
             agregar_al_historial("assistant", "Angela", respuesta)
 
             # Cambiar expresión según sentimiento de la respuesta
@@ -323,31 +331,32 @@ class Bot(commands.Bot):
     # =========================
     # 🧠 Modelo híbrido
     # =========================
-    async def consultar_modelo(self, texto, historial=None):
+    async def consultar_modelo(self, texto, usuario="viewer"):
         """
-        Intenta primero el servidor IA local.
-        Si falla, usa OpenAI como fallback.
-        Acepta historial de mensajes para dar contexto a la respuesta.
+        El servidor IA maneja el historial internamente.
+        Solo enviamos el texto y el nombre del usuario.
+        Si el servidor falla, el fallback OpenAI usa el historial local.
         """
-        historial = historial or []
 
-        # 1️⃣ Intentar servidor IA local
+        # 1️⃣ Intentar servidor IA local (maneja historial él solo)
         try:
             r = requests.post(
                 "http://192.168.1.50:8000/procesar",  # <-- Cambia esta IP si es necesario
-                json={"text": texto, "historial": historial},
+                json={"text": texto, "user": usuario},  # ✅ ya no enviamos historial
                 timeout=30
             )
             r.raise_for_status()
             data = r.json()
-            print("✅ Respuesta desde servidor IA local")
+            modelo = data.get("modelo_usado", "?")
+            turnos = data.get("historial_turnos", "?")
+            print(f"✅ Servidor IA [{modelo}] — {turnos} turnos en historial")
             return data["respuesta"], data["sentimiento"]
 
         except Exception as e:
             print(f"⚠️  Error servidor IA local: {e}")
 
-        # 2️⃣ Fallback: OpenAI con historial
-        print("☁️  Usando fallback OpenAI...")
+        # 2️⃣ Fallback: OpenAI con historial local (si el servidor está caído)
+        print("☁️  Usando fallback OpenAI con historial local...")
         try:
             system_prompt = {
                 "role": "system",
@@ -358,7 +367,9 @@ class Bot(commands.Bot):
                     "Tienes memoria del chat: usa el contexto anterior para dar respuestas coherentes."
                 )
             }
-            messages = [system_prompt] + historial + [{"role": "user", "content": f"[{texto}]"}]
+            messages = [system_prompt] + historial_como_messages() + [
+                {"role": "user", "content": f"[{usuario}]: {texto}"}
+            ]
 
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
