@@ -1,5 +1,6 @@
 # === Twitch ===
 twitchio>=2.8.2
+websockets>=11.0
 
 # === IA / LLM ===
 openai>=1.0.0
@@ -14,10 +15,16 @@ pyttsx3>=2.90
 mss>=7.0.0
 opencv-python>=4.5.0
 numpy>=1.21.0
-pyautogui>=0.9.53
-ultralytics>=8.0.0
+ultralytics>=8.0.0      # YOLO — detección de objetos en pantalla
+
+# === Juego (shooter + minecraft) ===
+pyautogui>=0.9.53       # control de teclado y ratón
+pytesseract>=0.3.10     # OCR para leer HUD de Minecraft
+# Nota: pytesseract requiere instalar Tesseract por separado:
+#   Windows: https://github.com/UB-Mannheim/tesseract/wiki
+#   Linux:   sudo apt install tesseract-ocr
+#   Mac:     brew install tesseract
 
 # === Utilidades ===
 python-dotenv>=1.0.0
-websockets>=11.0
 requests>=2.31.0

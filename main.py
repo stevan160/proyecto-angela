@@ -11,23 +11,17 @@ import requests
 import mss
 import numpy as np
 import cv2
-from ultralytics import YOLO
 from elevenlabs import set_api_key, generate, play
 from elevenlabs import voices
 from collections import deque
 from datetime import datetime
+import game          # 🎮 módulo shooter
+import game_minecraft  # ⛏️  módulo minecraft
 
 # =========================
 # 🔐 Cargar variables
 # =========================
 load_dotenv()
-
-# =========================
-# 👁️ Modelo de visión YOLO
-# =========================
-print("Cargando modelo YOLO...")
-yolo = YOLO("yolov8n.pt")  # se descarga automáticamente la primera vez
-print("YOLO listo.")
 
 # =========================
 # 🎵 Cola de audio global
@@ -230,6 +224,8 @@ class Bot(commands.Bot):
             initial_channels=[os.getenv("TWITCH_CHANNEL")]
         )
         self.vts_ws = None
+        self.game_task      = None  # 🎮 tarea shooter
+        self.minecraft_task = None  # ⛏️  tarea minecraft
 
     async def event_ready(self):
         print(f"✅ Bot conectado como {self.nick}")
@@ -244,55 +240,15 @@ class Bot(commands.Bot):
             print("⚠️  No se pudo conectar a VTube Studio:", e)
 
     async def loop_vision(self):
-        """
-        Captura pantalla cada 15 segundos y detecta objetos con YOLO.
-        Si detecta algo interesante, Angela lo comenta en el chat.
-        """
-        ultimo_comentario = {}  # evita repetir el mismo comentario seguido
-
+        """Captura pantalla cada 5 segundos (preparado para análisis futuro)."""
         while True:
             try:
                 frame = capturar_pantalla()
-
-                # Correr YOLO en un hilo separado para no bloquear el bot
-                resultados = await asyncio.to_thread(yolo, frame)
-
-                # Recopilar objetos detectados con confianza > 60%
-                objetos = []
-                for r in resultados:
-                    for box in r.boxes:
-                        confianza = float(box.conf[0])
-                        if confianza > 0.60:
-                            nombre = r.names[int(box.cls[0])]
-                            objetos.append(nombre)
-
-                # Deduplica y filtra objetos ya comentados recientemente
-                objetos_unicos = list(dict.fromkeys(objetos))
-                nuevos = [o for o in objetos_unicos if ultimo_comentario.get(o, 0) < asyncio.get_event_loop().time() - 60]
-
-                if nuevos and self.vts_ws:
-                    descripcion = ", ".join(nuevos[:4])  # máx 4 objetos por comentario
-                    prompt = f"Veo en pantalla: {descripcion}. Haz un comentario breve y natural sobre eso, como una VTuber."
-
-                    respuesta, _ = await self.consultar_modelo(prompt, usuario="Angela")
-
-                    # Publicar en chat y hablar
-                    canal = self._connection._cache.get(os.getenv("TWITCH_CHANNEL", "").lower())
-                    if canal:
-                        await canal.send(respuesta[:500])
-                    await audio_queue.put((respuesta, "Bella"))
-
-                    # Registrar qué objetos ya comentó para no repetir
-                    t = asyncio.get_event_loop().time()
-                    for o in nuevos:
-                        ultimo_comentario[o] = t
-
-                    print(f"👁️  YOLO detectó: {descripcion}")
-
+                # TODO: aquí puedes analizar el frame con YOLO u OpenCV
+                _ = frame  # sin uso por ahora
             except Exception as e:
-                print(f"⚠️  Error loop visión: {e}")
-
-            await asyncio.sleep(15)  # analiza cada 15 segundos
+                print(f"⚠️  Error captura pantalla: {e}")
+            await asyncio.sleep(5)
 
     async def event_message(self, message):
         # Ignorar mensajes del propio bot
@@ -340,6 +296,54 @@ class Bot(commands.Bot):
                 except Exception:
                     pass
                 await message.channel.send("🧹 Historial limpiado. ¡Empezamos de cero!")
+            return
+
+        # Comando !jugar — Angela juega shooter (solo el streamer)
+        if message.content.startswith("!jugar"):
+            if message.author.name.lower() != os.getenv("TWITCH_NICK", "").lower():
+                await message.channel.send("Solo el streamer puede usar !jugar 😅")
+                return
+            if game.jugando or game_minecraft.jugando:
+                await message.channel.send("¡Ya estoy jugando algo! Usa !parar primero 🎮")
+                return
+            await message.channel.send("🎮 ¡Vamos al shooter! Asegúrate de que el juego esté en pantalla.")
+            await audio_queue.put(("¡Vamos a jugar!", "Bella"))
+            self.game_task = asyncio.create_task(
+                game.loop_juego(yolo, self.consultar_modelo, audio_queue, message.channel)
+            )
+            return
+
+        # Comando !minecraft — Angela juega Minecraft (solo el streamer)
+        if message.content.startswith("!minecraft"):
+            if message.author.name.lower() != os.getenv("TWITCH_NICK", "").lower():
+                await message.channel.send("Solo el streamer puede usar !minecraft 😅")
+                return
+            if game.jugando or game_minecraft.jugando:
+                await message.channel.send("¡Ya estoy jugando algo! Usa !parar primero ⛏️")
+                return
+            await message.channel.send("⛏️ ¡A minar se ha dicho! Asegúrate de que Minecraft esté abierto.")
+            await audio_queue.put(("¡Vamos a jugar Minecraft!", "Bella"))
+            self.minecraft_task = asyncio.create_task(
+                game_minecraft.loop_minecraft(yolo, self.consultar_modelo, audio_queue, message.channel)
+            )
+            return
+
+        # Comando !parar — para cualquier juego activo (solo el streamer)
+        if message.content.startswith("!parar"):
+            if message.author.name.lower() != os.getenv("TWITCH_NICK", "").lower():
+                return
+            if not game.jugando and not game_minecraft.jugando:
+                await message.channel.send("No estaba jugando nada 🤷")
+                return
+            game.parar_juego()
+            game_minecraft.parar_minecraft()
+            for t in [self.game_task, self.minecraft_task]:
+                if t:
+                    t.cancel()
+            self.game_task = None
+            self.minecraft_task = None
+            await message.channel.send("🛑 Dejé de jugar.")
+            await audio_queue.put(("Listo, paré de jugar.", "Bella"))
             return
 
         # Comando !ask
@@ -420,7 +424,7 @@ class Bot(commands.Bot):
             ]
 
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=messages,
                 max_tokens=300,
             )
@@ -436,3 +440,4 @@ class Bot(commands.Bot):
 if __name__ == "__main__":
     bot = Bot()
     bot.run()
+    
