@@ -13,6 +13,8 @@ import numpy as np
 import cv2
 from elevenlabs import set_api_key, generate, play
 from elevenlabs import voices
+from collections import deque
+from datetime import datetime
 
 # =========================
 # 🔐 Cargar variables
@@ -23,6 +25,38 @@ load_dotenv()
 # 🎵 Cola de audio global
 # =========================
 audio_queue = asyncio.Queue()
+
+# =========================
+# 📜 Historial compartido del chat
+# =========================
+# Guarda los últimos 30 mensajes del chat (usuario + Angela)
+# Se pasa como contexto al modelo para que recuerde la conversación
+HISTORIAL_MAX = 30
+chat_history = deque(maxlen=HISTORIAL_MAX)
+
+def agregar_al_historial(rol: str, nombre: str, contenido: str):
+    """
+    rol: 'user' o 'assistant'
+    nombre: nombre del usuario de Twitch o 'Angela'
+    contenido: texto del mensaje
+    """
+    chat_history.append({
+        "rol": rol,
+        "nombre": nombre,
+        "contenido": contenido,
+        "hora": datetime.now().strftime("%H:%M")
+    })
+
+def historial_como_messages():
+    """
+    Convierte el historial al formato de mensajes que espera OpenAI/Ollama.
+    """
+    messages = []
+    for entry in chat_history:
+        # Prefijamos el nombre para que Angela sepa quién dijo qué
+        texto = f"[{entry['nombre']}]: {entry['contenido']}" if entry["rol"] == "user" else entry["contenido"]
+        messages.append({"role": entry["rol"], "content": texto})
+    return messages
 
 set_api_key(os.getenv("ELEVENLABS_API_KEY"))
 
@@ -191,13 +225,26 @@ class Bot(commands.Bot):
 
     async def event_ready(self):
         print(f"✅ Bot conectado como {self.nick}")
-        asyncio.create_task(audio_worker()) 
+        asyncio.create_task(audio_worker())
         print("✅ Cola de audio iniciada")
+        asyncio.create_task(self.loop_vision())
+        print("✅ Vision loop iniciado")
         try:
             self.vts_ws = await conectar_vts()
             print("✅ Conectado a VTube Studio")
         except Exception as e:
             print("⚠️  No se pudo conectar a VTube Studio:", e)
+
+    async def loop_vision(self):
+        """Captura pantalla cada 5 segundos (preparado para análisis futuro)."""
+        while True:
+            try:
+                frame = capturar_pantalla()
+                # TODO: aquí puedes analizar el frame con YOLO u OpenCV
+                _ = frame  # sin uso por ahora
+            except Exception as e:
+                print(f"⚠️  Error captura pantalla: {e}")
+            await asyncio.sleep(5)
 
     async def event_message(self, message):
         # Ignorar mensajes del propio bot
@@ -205,6 +252,9 @@ class Bot(commands.Bot):
             return
 
         print(f"[{message.author.name}]: {message.content}")
+
+        # Guardar mensaje en historial compartido
+        agregar_al_historial("user", message.author.name, message.content)
 
         # Analizar sentimiento del mensaje
         label, score = analizar_sentimiento(message.content)
@@ -223,6 +273,23 @@ class Bot(commands.Bot):
             print("Mensaje ignorado por negatividad alta.")
             return
 
+        # Comando !historial — muestra cuántos mensajes recuerda Angela
+        if message.content.startswith("!historial"):
+            total = len(chat_history)
+            await message.channel.send(
+                f"📜 Recuerdo los últimos {total} mensajes del chat (máx {HISTORIAL_MAX}). "
+                f"Primer mensaje desde las {chat_history[0]['hora'] if total > 0 else '—'}."
+            )
+            return
+
+        # Comando !olvida — limpia el historial (solo el streamer)
+        if message.content.startswith("!olvida"):
+            # Reemplaza con tu nick para que solo tú puedas usarlo
+            if message.author.name.lower() == os.getenv("TWITCH_NICK", "").lower():
+                chat_history.clear()
+                await message.channel.send("🧹 Historial limpiado. ¡Empezamos de cero!")
+            return
+
         # Comando !ask
         if message.content.startswith("!ask"):
             pregunta = message.content.replace("!ask", "").strip()
@@ -231,7 +298,10 @@ class Bot(commands.Bot):
                 await message.channel.send("¡Escribe algo después de !ask! 😊")
                 return
 
-            respuesta, sentimiento = await self.consultar_modelo(pregunta)
+            respuesta, sentimiento = await self.consultar_modelo(pregunta, historial_como_messages())
+
+            # Guardar respuesta de Angela en el historial
+            agregar_al_historial("assistant", "Angela", respuesta)
 
             # Cambiar expresión según sentimiento de la respuesta
             if sentimiento == "POSITIVE":
@@ -253,17 +323,19 @@ class Bot(commands.Bot):
     # =========================
     # 🧠 Modelo híbrido
     # =========================
-    async def consultar_modelo(self, texto):
+    async def consultar_modelo(self, texto, historial=None):
         """
         Intenta primero el servidor IA local.
         Si falla, usa OpenAI como fallback.
+        Acepta historial de mensajes para dar contexto a la respuesta.
         """
+        historial = historial or []
 
         # 1️⃣ Intentar servidor IA local
         try:
             r = requests.post(
                 "http://192.168.1.50:8000/procesar",  # <-- Cambia esta IP si es necesario
-                json={"text": texto},
+                json={"text": texto, "historial": historial},
                 timeout=30
             )
             r.raise_for_status()
@@ -274,23 +346,24 @@ class Bot(commands.Bot):
         except Exception as e:
             print(f"⚠️  Error servidor IA local: {e}")
 
-        # 2️⃣ Fallback: OpenAI
+        # 2️⃣ Fallback: OpenAI con historial
         print("☁️  Usando fallback OpenAI...")
         try:
+            system_prompt = {
+                "role": "system",
+                "content": (
+                    "Eres una VTuber femenina llamada Angela. "
+                    "Eres relajada, inteligente y curiosa. "
+                    "Respondes de forma breve y amigable en el chat de Twitch. "
+                    "Tienes memoria del chat: usa el contexto anterior para dar respuestas coherentes."
+                )
+            }
+            messages = [system_prompt] + historial + [{"role": "user", "content": f"[{texto}]"}]
+
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Eres una VTuber femenina llamada Angela. "
-                            "Eres relajada, inteligente y curiosa. "
-                            "Respondes de forma breve y amigable en el chat de Twitch."
-                        )
-                    },
-                    {"role": "user", "content": texto}
-                ],
-                max_tokens=4096,
+                messages=messages,
+                max_tokens=300,
             )
             return response.choices[0].message.content, "NEUTRAL"
 

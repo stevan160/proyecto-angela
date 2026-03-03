@@ -8,7 +8,5 @@ mss>=7.0.0
 opencv-python>=4.5.0
 numpy>=1.21.0
 pyautogui>=0.9.53
-opencv-python>=4.5.0
-numpy>=1.21.0
 torch>=1.9.0
 ultralytics>=8.0.0

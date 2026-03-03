@@ -3,3 +3,5 @@
 #aun no a lcanza su versión 1.0, pero aquí puedes ver el código base y cómo se conecta todo.
 #aun no se ah probado, así que puede tener errores, pero es un buen punto de partida para entender cómo funciona todo.
 #aunque el modelo sea grande los scripts son algo largos, pero están bien comentados para que puedas entender cada parte. 
+#debes poner tus claves en el archivo .env, ejemplo:
+# la de twitch es oauth:xxxxxx, la de openai es sk-xxxxxx, la de elevenlabs es xxxxxxx, la de ollama es xxxxxxx y la de vts es xxxxxxx
