@@ -290,7 +290,7 @@ class Bot(commands.Bot):
                     },
                     {"role": "user", "content": texto}
                 ],
-                max_tokens=300,  # ✅ Corregido: era 50000, límite real ~4096
+                max_tokens=4096,
             )
             return response.choices[0].message.content, "NEUTRAL"
 
