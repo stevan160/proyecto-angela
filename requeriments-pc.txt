@@ -1,12 +1,23 @@
+# === Twitch ===
 twitchio>=2.8.2
+
+# === IA / LLM ===
 openai>=1.0.0
-python-dotenv>=1.0.0
+transformers>=4.40.0
+torch>=1.9.0
+
+# === TTS ===
+elevenlabs>=1.0.0
 pyttsx3>=2.90
-websockets>=11.0
-requests>=2.31.0
+
+# === Visión ===
 mss>=7.0.0
 opencv-python>=4.5.0
 numpy>=1.21.0
 pyautogui>=0.9.53
-torch>=1.9.0
 ultralytics>=8.0.0
+
+# === Utilidades ===
+python-dotenv>=1.0.0
+websockets>=11.0
+requests>=2.31.0

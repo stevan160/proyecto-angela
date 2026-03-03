@@ -124,28 +124,34 @@ async def procesar(req: ChatRequest):
 
     # 5️⃣ Elegir motor según complejidad
     if es_pregunta_pesada(req.text):
-        print(f"🧠 OpenAI — '{req.text[:50]}...'")
+        print(f"🧠 OpenAI GPT-4o — '{req.text[:50]}...'")
         try:
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",  # ✅ más potente que gpt-3.5-turbo
                 messages=messages,
-                max_tokens=300,
+                max_tokens=500,  # más espacio para respuestas complejas
             )
             respuesta = response.choices[0].message.content
         except Exception as e:
             print(f"❌ Error OpenAI: {e}")
             respuesta = "Error al conectar con OpenAI 😅"
     else:
-        print(f"🖥️  Ollama — '{req.text[:50]}'")
-        try:
-            response = ollama.chat(
-                model="llama3",
-                messages=messages
-            )
-            respuesta = response["message"]["content"]
-        except Exception as e:
-            print(f"❌ Error Ollama: {e}")
-            respuesta = "Error con el modelo local 😅"
+        # Intentar con el modelo potente primero, luego fallback al básico
+        for modelo in ["mixtral:8x7b", "llama3.1:8b", "llama3"]:
+            print(f"🖥️  Ollama [{modelo}] — '{req.text[:50]}'")
+            try:
+                response = ollama.chat(
+                    model=modelo,
+                    messages=messages
+                )
+                respuesta = response["message"]["content"]
+                break  # si funcionó, salir del loop
+            except Exception as e:
+                print(f"⚠️  {modelo} no disponible: {e} — probando siguiente...")
+                continue
+
+        if not respuesta:
+            respuesta = "No pude conectar con ningún modelo local 😅"
 
     # 6️⃣ Añadir la respuesta de Angela al historial compartido
     conversation_history.append({

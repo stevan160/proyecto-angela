@@ -11,6 +11,7 @@ import requests
 import mss
 import numpy as np
 import cv2
+from ultralytics import YOLO
 from elevenlabs import set_api_key, generate, play
 from elevenlabs import voices
 from collections import deque
@@ -22,6 +23,13 @@ from datetime import datetime
 load_dotenv()
 
 # =========================
+# 👁️ Modelo de visión YOLO
+# =========================
+print("Cargando modelo YOLO...")
+yolo = YOLO("yolov8n.pt")  # se descarga automáticamente la primera vez
+print("YOLO listo.")
+
+# =========================
 # 🎵 Cola de audio global
 # =========================
 audio_queue = asyncio.Queue()
@@ -29,9 +37,9 @@ audio_queue = asyncio.Queue()
 # =========================
 # 📜 Historial compartido del chat
 # =========================
-# Guarda los últimos 3000000 mensajes del chat (usuario + Angela)
-# Se pasa como contexto al modelo para que recuerde la conversación
-HISTORIAL_MAX = 300 
+# Guarda los últimos 300 mensajes del chat (usuario + Angela)
+# Se pasa como contexto al modelo en el fallback si el servidor cae
+HISTORIAL_MAX = 300
 chat_history = deque(maxlen=HISTORIAL_MAX)
 
 def agregar_al_historial(rol: str, nombre: str, contenido: str):
@@ -236,15 +244,55 @@ class Bot(commands.Bot):
             print("⚠️  No se pudo conectar a VTube Studio:", e)
 
     async def loop_vision(self):
-        """Captura pantalla cada 5 segundos (preparado para análisis futuro)."""
+        """
+        Captura pantalla cada 15 segundos y detecta objetos con YOLO.
+        Si detecta algo interesante, Angela lo comenta en el chat.
+        """
+        ultimo_comentario = {}  # evita repetir el mismo comentario seguido
+
         while True:
             try:
                 frame = capturar_pantalla()
-                # TODO: aquí puedes analizar el frame con YOLO u OpenCV
-                _ = frame  # sin uso por ahora
+
+                # Correr YOLO en un hilo separado para no bloquear el bot
+                resultados = await asyncio.to_thread(yolo, frame)
+
+                # Recopilar objetos detectados con confianza > 60%
+                objetos = []
+                for r in resultados:
+                    for box in r.boxes:
+                        confianza = float(box.conf[0])
+                        if confianza > 0.60:
+                            nombre = r.names[int(box.cls[0])]
+                            objetos.append(nombre)
+
+                # Deduplica y filtra objetos ya comentados recientemente
+                objetos_unicos = list(dict.fromkeys(objetos))
+                nuevos = [o for o in objetos_unicos if ultimo_comentario.get(o, 0) < asyncio.get_event_loop().time() - 60]
+
+                if nuevos and self.vts_ws:
+                    descripcion = ", ".join(nuevos[:4])  # máx 4 objetos por comentario
+                    prompt = f"Veo en pantalla: {descripcion}. Haz un comentario breve y natural sobre eso, como una VTuber."
+
+                    respuesta, _ = await self.consultar_modelo(prompt, usuario="Angela")
+
+                    # Publicar en chat y hablar
+                    canal = self._connection._cache.get(os.getenv("TWITCH_CHANNEL", "").lower())
+                    if canal:
+                        await canal.send(respuesta[:500])
+                    await audio_queue.put((respuesta, "Bella"))
+
+                    # Registrar qué objetos ya comentó para no repetir
+                    t = asyncio.get_event_loop().time()
+                    for o in nuevos:
+                        ultimo_comentario[o] = t
+
+                    print(f"👁️  YOLO detectó: {descripcion}")
+
             except Exception as e:
-                print(f"⚠️  Error captura pantalla: {e}")
-            await asyncio.sleep(5)
+                print(f"⚠️  Error loop visión: {e}")
+
+            await asyncio.sleep(15)  # analiza cada 15 segundos
 
     async def event_message(self, message):
         # Ignorar mensajes del propio bot
@@ -372,7 +420,7 @@ class Bot(commands.Bot):
             ]
 
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=messages,
                 max_tokens=300,
             )
