@@ -19,6 +19,11 @@ from elevenlabs import voices
 # =========================
 load_dotenv()
 
+# =========================
+# 🎵 Cola de audio global
+# =========================
+audio_queue = asyncio.Queue()
+
 set_api_key(os.getenv("ELEVENLABS_API_KEY"))
 
 # Listar voces disponibles (opcional, puede comentarse)
@@ -66,6 +71,29 @@ async def hablar_elevenlabs(texto, voz="Bella"):
         print("Error ElevenLabs TTS:", e)
         # Fallback a TTS local si ElevenLabs falla
         await hablar_async(texto)
+
+# =========================
+# 🎵 Worker de cola de audio
+# =========================
+async def audio_worker():
+    """
+    Procesa los audios en orden, uno por uno.
+    Evita que se solapen si varios usuarios usan !ask al mismo tiempo.
+    """
+    while True:
+        texto, voz = await audio_queue.get()
+        try:
+            audio = generate(
+                text=texto,
+                voice=voz,
+                model="eleven_multilingual_v1"
+            )
+            await asyncio.to_thread(play, audio)
+        except Exception as e:
+            print(f"⚠️  Error ElevenLabs en cola: {e} — usando TTS local")
+            await hablar_async(texto)
+        finally:
+            audio_queue.task_done()
 
 # =========================
 # 📸 Captura de pantalla
@@ -163,6 +191,8 @@ class Bot(commands.Bot):
 
     async def event_ready(self):
         print(f"✅ Bot conectado como {self.nick}")
+        asyncio.create_task(audio_worker()) 
+        print("✅ Cola de audio iniciada")
         try:
             self.vts_ws = await conectar_vts()
             print("✅ Conectado a VTube Studio")
@@ -214,8 +244,9 @@ class Bot(commands.Bot):
             # Twitch tiene límite de 500 caracteres por mensaje
             await message.channel.send(respuesta[:500])
 
-            # Convertir respuesta a voz
-            await hablar_elevenlabs(respuesta, voz="Bella")
+            # Encolar respuesta para voz (evita solapamiento)
+            await audio_queue.put((respuesta, "Bella"))
+            print(f"🎵 Audio encolado — {audio_queue.qsize()} en espera")
 
         await self.handle_commands(message)
 

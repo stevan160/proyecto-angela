@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import pipeline
 from openai import OpenAI
-import ollama  # correcto
+import ollama
 import os
 
 load_dotenv()
@@ -20,7 +20,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # =========================
 sentiment_model = pipeline(
     "sentiment-analysis",
-    model="distilbert-base-uncased-finetuned-sst-2-english"
+    model="distilbert-base-uncased-finetuned-sst-2-spanish",
 )
 
 class ChatRequest(BaseModel):
@@ -66,14 +66,14 @@ async def procesar(req: ChatRequest):
                     {"role": "system", "content": "Eres una VTuber femenina llamada angela,eres relajada,inteligente y curiosa independiente que vive en el stream."},
                     {"role": "user", "content": req.text}
                 ],
-                max_tokens=300,  # Corregido: GPT-3.5 max ~4096
+                max_tokens=4096,
             )
 
             respuesta = response.choices[0].message.content
 
         except Exception as e:
             print("Error OpenAI:", e)
-            respuesta = "Error en OpenAI 😅"
+            respuesta = "Error en OpenAI"
 
     else:
         print("Usando Ollama (local)")
