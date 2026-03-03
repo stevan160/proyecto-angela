@@ -31,7 +31,7 @@ audio_queue = asyncio.Queue()
 # =========================
 # Guarda los últimos 3000000 mensajes del chat (usuario + Angela)
 # Se pasa como contexto al modelo para que recuerde la conversación
-HISTORIAL_MAX = 3000000
+HISTORIAL_MAX = 300 
 chat_history = deque(maxlen=HISTORIAL_MAX)
 
 def agregar_al_historial(rol: str, nombre: str, contenido: str):
@@ -367,7 +367,7 @@ class Bot(commands.Bot):
                     "Tienes memoria del chat: usa el contexto anterior para dar respuestas coherentes."
                 )
             }
-            messages = [system_prompt] + historial_como_messages() + [
+            messages = [system_prompt] + historial_como_messages()[-20:] + [
                 {"role": "user", "content": f"[{usuario}]: {texto}"}
             ]
 
