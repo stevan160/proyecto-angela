@@ -17,6 +17,7 @@ from collections import deque
 from datetime import datetime
 import game          # 🎮 módulo shooter
 import game_minecraft  # ⛏️  módulo minecraft
+import yolo_model     # modelo de visión (YOLO)
 
 # =========================
 # 🔐 Cargar variables
@@ -440,4 +441,3 @@ class Bot(commands.Bot):
 if __name__ == "__main__":
     bot = Bot()
     bot.run()
-    
