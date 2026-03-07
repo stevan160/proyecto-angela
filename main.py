@@ -293,7 +293,7 @@ class Bot(commands.Bot):
                 chat_history.clear()
                 # ✅ También limpiar el historial del servidor
                 try:
-                    requests.post("http://192.168.1.50:8000/reset", timeout=5)
+                    requests.post("http://192.168.1.50:8000/reset", timeout=5)  #limpiar historial del servidor IA
                 except Exception:
                     pass
                 await message.channel.send("🧹 Historial limpiado. ¡Empezamos de cero!")
@@ -382,7 +382,7 @@ class Bot(commands.Bot):
         await self.handle_commands(message)
 
     # =========================
-    # 🧠 Modelo híbrido
+    # 🧠 Modelo híbrido de inteligencia artificial
     # =========================
     async def consultar_modelo(self, texto, usuario="viewer"):
         """
@@ -394,8 +394,8 @@ class Bot(commands.Bot):
         # 1️⃣ Intentar servidor IA local (maneja historial él solo)
         try:
             r = requests.post(
-                "http://192.168.1.50:8000/procesar",  # <-- Cambia esta IP si es necesario
-                json={"text": texto, "user": usuario},  # ✅ ya no enviamos historial
+                "http://192.168.1.50:8000/procesar",  # <-- Cambia esta IP a la del servidor si tiene otra dirección o si quieres usar localhost
+                json={"text": texto, "user": usuario},  #  ya no enviamos historial
                 timeout=30
             )
             r.raise_for_status()
@@ -408,7 +408,7 @@ class Bot(commands.Bot):
         except Exception as e:
             print(f"⚠️  Error servidor IA local: {e}")
 
-        # 2️⃣ Fallback: OpenAI con historial local (si el servidor está caído)
+        # 2️⃣ Fallback: OpenAI con historial local (si el servidor está reaccionado, Angela lo menciona)
         print("☁️  Usando fallback OpenAI con historial local...")
         try:
             system_prompt = {
@@ -433,10 +433,10 @@ class Bot(commands.Bot):
 
         except Exception as e:
             print(f"❌ Error OpenAI: {e}")
-            return "¡Algo falló, lo siento! 😅", "NEUTRAL"
+            return "¡Algo falló, lo siento! ", "NEUTRAL"
 
 # =========================
-# 🚀 Ejecutar bot
+#     Ejecutar bot
 # =========================
 if __name__ == "__main__":
     bot = Bot()
