@@ -15,9 +15,9 @@ from elevenlabs import set_api_key, generate, play
 from elevenlabs import voices
 from collections import deque
 from datetime import datetime
-import game          # 🎮 módulo shooter
-import game_minecraft  # ⛏️  módulo minecraft
-import yolo_model     # modelo de visión (YOLO)
+import game          
+import game_minecraft  
+import yolo_model     
 
 # =========================
 # 🔐 Cargar variables

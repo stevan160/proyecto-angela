@@ -23,7 +23,7 @@ import mss
 from ultralytics import YOLO
 
 try:
-    import pytesseract  # OCR para leer vida, hambre, inventario
+    import pytesseract
     OCR_DISPONIBLE = True
 except ImportError:
     OCR_DISPONIBLE = False
