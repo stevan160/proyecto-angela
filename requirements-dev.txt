@@ -1,0 +1,8 @@
+# === Dependencias de Desarrollo ===
+# Para testing, linting y debugging
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0           # Code formatter
+pylint>=3.0.0           # Code linter
+mypy>=1.0.0             # Type checker
