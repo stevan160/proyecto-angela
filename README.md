@@ -1,26 +1,6 @@
-# Project Angela 🌍
+ 
 
-Sistema de monitoreo predictivo impulsado por IA orientado a visualización de datos, análisis y asistencia inteligente.
 
-## ✨ Features
-
-- Dashboard moderno
-- Integración con IA
-- Visualización de datos
-- Arquitectura escalable
-- Base preparada para futuras APIs y predicción avanzada
-
----
-
-## 🛠 Tecnologías
-
-- JavaScript / TypeScript
-- Node.js
-- Frontend moderno
-- APIs
-- IA / automatización
-
----
 
 ## 🚀 Instalación
 
@@ -33,7 +13,8 @@ npm run dev
 
 ## 🔐 Variables de entorno
 
-Crea un archivo `.env` usando `.env.example`
+
+usa `.env`
 
 ```env
 OPENAI_API_KEY=
