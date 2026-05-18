@@ -21,17 +21,7 @@ OPENAI_API_KEY=
 API_URL=
 ```
 
----
 
-## 📌 Roadmap
-
-- [ ] Mejorar UI/UX
-- [ ] Integrar predicción avanzada
-- [ ] Añadir autenticación
-- [ ] Deploy público
-- [ ] Sistema de métricas
-
----
 
 ## 🤝 Contribuciones
 
@@ -43,8 +33,3 @@ Las contribuciones son bienvenidas mediante Pull Requests.
 
 MIT License
 
----
-
-## ⭐ Objetivo
-
-Project Angela busca convertirse en una plataforma moderna de análisis y monitoreo inteligente con enfoque visual y escalable.
