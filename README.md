@@ -14,7 +14,7 @@ npm run dev
 ## 🔐 Variables de entorno
 
 
-usa `.env` y agrega los parametros necesarios
+usa `.env,sample` cres y agrega en `.env` los parametros necesarios
 
 ```env
 OPENAI_API_KEY=
