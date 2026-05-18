@@ -31,20 +31,6 @@ npm install
 npm run dev
 ```
 
----
-
-## 📁 Estructura Recomendada
-
-```txt
-frontend/
-backend/
-docs/
-assets/
-scripts/
-```
-
----
-
 ## 🔐 Variables de entorno
 
 Crea un archivo `.env` usando `.env.example`
