@@ -6,6 +6,8 @@ from twitchio.ext import commands
 import asyncio
 import websockets
 import json
+import importlib
+import importlib.util
 from transformers import pipeline
 import requests
 import mss
@@ -15,9 +17,18 @@ from elevenlabs import set_api_key, generate, play
 from elevenlabs import voices
 from collections import deque
 from datetime import datetime
-import game          
-import game_minecraft  
-import yolo_model     
+import game_controller
+
+yolo = None
+_yolo_spec = importlib.util.find_spec("yolo_model")
+if _yolo_spec is not None:
+    yolo_model = importlib.import_module("yolo_model")
+    yolo = yolo_model
+else:
+    print("⚠️  No se encontró el módulo yolo_model. Algunas funciones no estarán disponibles.")
+
+game = game_controller
+game_minecraft = game_controller
 
 # =========================
 # 🔐 Cargar variables
